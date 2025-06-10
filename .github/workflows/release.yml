@@ -49,7 +49,7 @@ jobs:
         run: |
           if [ -n "$ENCODED_STRING" ]; then
             echo "Decoding keystore..."
-            echo "$ENCODED_STRING" | tr -d '\n\r\t ' | base64 -d > keystore.jks
+            echo "$ENCODED_STRING" | tr -d '\n\r\t ' | base64 -d > app/keystore.jks
             if [ $? -eq 0 ]; then
               echo "Keystore decoded successfully"
             else
@@ -63,7 +63,7 @@ jobs:
         env:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-          SIGNING_STORE_FILE: keystore.jks
+          SIGNING_STORE_FILE: app/keystore.jks
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
         run: |
           ./gradlew assembleCoreRelease --stacktrace
