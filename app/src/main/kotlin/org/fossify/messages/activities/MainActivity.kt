@@ -64,9 +64,11 @@ import org.fossify.messages.extensions.config
 import org.fossify.messages.extensions.conversationsDB
 import org.fossify.messages.extensions.getConversations
 import org.fossify.messages.extensions.getMessages
+import org.fossify.messages.extensions.getNameAndPhotoFromPhoneNumber
 import org.fossify.messages.extensions.insertOrUpdateConversation
 import org.fossify.messages.extensions.messagesDB
 import org.fossify.messages.extensions.updateUnreadCountBadge
+import org.fossify.messages.helpers.MessageFilters
 import org.fossify.messages.helpers.SEARCHED_MESSAGE_ID
 import org.fossify.messages.helpers.THREAD_ID
 import org.fossify.messages.helpers.THREAD_TITLE
@@ -78,6 +80,16 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 
+enum class ConversationFilter {
+    CONTACTS,
+    ALL,
+    NON_CONTACTS,
+    DISCOUNT,
+    ISP,
+    OTP,
+    BANK
+}
+
 class MainActivity : SimpleActivity() {
     private val MAKE_DEFAULT_APP_REQUEST = 1
 
@@ -85,6 +97,8 @@ class MainActivity : SimpleActivity() {
     private var storedFontSize = 0
     private var lastSearchedText = ""
     private var bus: EventBus? = null
+    private var currentFilter = ConversationFilter.CONTACTS
+    private var allConversations = ArrayList<Conversation>()
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
 
@@ -96,6 +110,7 @@ class MainActivity : SimpleActivity() {
         appLaunched(BuildConfig.APPLICATION_ID)
         setupOptionsMenu()
         refreshMenuItems()
+        setupFilterButtons()
 
         updateMaterialActivityViews(
             mainCoordinatorLayout = binding.mainCoordinator,
@@ -140,6 +155,10 @@ class MainActivity : SimpleActivity() {
         binding.conversationsFastscroller.updateColors(properPrimaryColor)
         binding.conversationsProgressBar.setIndicatorColor(properPrimaryColor)
         binding.conversationsProgressBar.trackColor = properPrimaryColor.adjustAlpha(LOWER_ALPHA)
+        
+        // Update filter button styles to match current theme
+        updateFilterButtonStyles()
+        
         checkShortcut()
         (binding.conversationsFab.layoutParams as? CoordinatorLayout.LayoutParams)?.bottomMargin =
             navigationBarHeight + resources.getDimension(org.fossify.commons.R.dimen.activity_margin)
@@ -419,7 +438,25 @@ class MainActivity : SimpleActivity() {
     private fun setupConversations(
         conversations: ArrayList<Conversation>,
         cached: Boolean = false,
+        filtered: Boolean = false
     ) {
+        // Store all conversations when they are first loaded (not filtered)
+        if (!filtered) {
+            allConversations = conversations
+            // Apply current filter to show only the desired conversations
+            val filteredConversations = when (currentFilter) {
+                ConversationFilter.ALL -> conversations
+                ConversationFilter.CONTACTS -> conversations.filter { isFromContact(it) }
+                ConversationFilter.NON_CONTACTS -> conversations.filter { !isFromContact(it) }
+                ConversationFilter.DISCOUNT -> conversations.filter { isDiscountConversation(it) }
+                ConversationFilter.ISP -> conversations.filter { isIspConversation(it) }
+                ConversationFilter.OTP -> conversations.filter { isOtpConversation(it) }
+                ConversationFilter.BANK -> conversations.filter { isBankConversation(it) }
+            } as ArrayList<Conversation>
+            setupConversations(filteredConversations, cached, filtered = true)
+            return
+        }
+        
         val sortedConversations = conversations
             .sortedWith(
                 compareByDescending<Conversation> {
@@ -693,6 +730,214 @@ class MainActivity : SimpleActivity() {
     private fun checkWhatsNewDialog() {
         arrayListOf<Release>().apply {
             checkWhatsNew(this, BuildConfig.VERSION_CODE)
+        }
+    }
+
+    private fun setupFilterButtons() {
+        updateFilterButtonStyles()
+        
+        binding.filterContacts.setOnClickListener {
+            setFilter(ConversationFilter.CONTACTS)
+        }
+        
+        binding.filterAll.setOnClickListener {
+            setFilter(ConversationFilter.ALL)
+        }
+        
+        binding.filterNonContacts.setOnClickListener {
+            setFilter(ConversationFilter.NON_CONTACTS)
+        }
+        
+        binding.filterDiscount.setOnClickListener {
+            setFilter(ConversationFilter.DISCOUNT)
+        }
+        
+        binding.filterIsp.setOnClickListener {
+            setFilter(ConversationFilter.ISP)
+        }
+        
+        binding.filterOtp.setOnClickListener {
+            setFilter(ConversationFilter.OTP)
+        }
+        
+        binding.filterBank.setOnClickListener {
+            setFilter(ConversationFilter.BANK)
+        }
+    }
+    
+    private fun setFilter(filter: ConversationFilter) {
+        if (currentFilter != filter) {
+            currentFilter = filter
+            updateFilterButtonStyles()
+            applyConversationFilter()
+        }
+    }
+    
+    private fun updateFilterButtonStyles() {
+        val primaryColor = getProperPrimaryColor()
+        val backgroundColor = getProperBackgroundColor()
+        
+        // Reset all buttons to outline style
+        listOf(binding.filterContacts, binding.filterAll, binding.filterNonContacts, binding.filterDiscount, binding.filterIsp, binding.filterOtp, binding.filterBank).forEach { button ->
+            button.strokeColor = android.content.res.ColorStateList.valueOf(primaryColor)
+            button.setTextColor(primaryColor)
+            button.backgroundTintList = null
+        }
+        
+        // Set selected button to filled style
+        val selectedButton = when (currentFilter) {
+            ConversationFilter.CONTACTS -> binding.filterContacts
+            ConversationFilter.ALL -> binding.filterAll
+            ConversationFilter.NON_CONTACTS -> binding.filterNonContacts
+            ConversationFilter.DISCOUNT -> binding.filterDiscount
+            ConversationFilter.ISP -> binding.filterIsp
+            ConversationFilter.OTP -> binding.filterOtp
+            ConversationFilter.BANK -> binding.filterBank
+        }
+        
+        selectedButton.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+        selectedButton.setTextColor(backgroundColor)
+        selectedButton.strokeColor = android.content.res.ColorStateList.valueOf(primaryColor)
+    }
+    
+    private fun applyConversationFilter() {
+        val filteredConversations = when (currentFilter) {
+            ConversationFilter.ALL -> allConversations
+            ConversationFilter.CONTACTS -> allConversations.filter { isFromContact(it) }
+            ConversationFilter.NON_CONTACTS -> allConversations.filter { !isFromContact(it) }
+            ConversationFilter.DISCOUNT -> allConversations.filter { isDiscountConversation(it) }
+            ConversationFilter.ISP -> allConversations.filter { isIspConversation(it) }
+            ConversationFilter.OTP -> allConversations.filter { isOtpConversation(it) }
+            ConversationFilter.BANK -> allConversations.filter { isBankConversation(it) }
+        } as ArrayList<Conversation>
+        
+        setupConversations(filteredConversations, filtered = true)
+    }
+    
+    private fun isFromContact(conversation: Conversation): Boolean {
+        val namePhoto = getNameAndPhotoFromPhoneNumber(conversation.phoneNumber)
+        // If the name is different from the phone number, it means it's a contact
+        return namePhoto.name != conversation.phoneNumber
+    }
+
+    private fun isDiscountConversation(conversation: Conversation): Boolean {
+        return try {
+            // Check if conversation snippet contains discount keywords
+            if (MessageFilters.containsDiscountKeywords(conversation.snippet)) {
+                return true
+            }
+            
+            // If the conversation itself is marked as unread, check unread messages
+            if (!conversation.read) {
+                val unreadMessages = try {
+                    messagesDB.getThreadMessages(conversation.threadId).filter { !it.read }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                return unreadMessages.any { message ->
+                    MessageFilters.containsDiscountKeywords(message.body)
+                }
+            }
+            
+            false
+        } catch (e: Exception) {
+            // If there's any error, default to false
+            false
+        }
+    }
+
+    private fun isIspConversation(conversation: Conversation): Boolean {
+        return try {
+            // Check if the conversation title (sender name) is from an ISP
+            if (MessageFilters.isFromISP(conversation.title)) {
+                return true
+            }
+            
+            // Also check the phone number in case it's stored there
+            if (MessageFilters.isFromISP(conversation.phoneNumber)) {
+                return true
+            }
+            
+            // If the conversation itself is marked as unread, check unread messages for ISP senders
+            if (!conversation.read) {
+                val unreadMessages = try {
+                    messagesDB.getThreadMessages(conversation.threadId).filter { !it.read }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                return unreadMessages.any { message ->
+                    MessageFilters.isFromISP(message.senderName)
+                }
+            }
+            
+            false
+        } catch (e: Exception) {
+            // If there's any error, default to false
+            false
+        }
+    }
+
+    private fun isOtpConversation(conversation: Conversation): Boolean {
+        return try {
+            // Check if conversation snippet contains OTP keywords
+            if (MessageFilters.containsOtpKeywords(conversation.snippet)) {
+                return true
+            }
+            
+            // If the conversation itself is marked as unread, check unread messages for OTP keywords
+            if (!conversation.read) {
+                val unreadMessages = try {
+                    messagesDB.getThreadMessages(conversation.threadId).filter { !it.read }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                return unreadMessages.any { message ->
+                    MessageFilters.containsOtpKeywords(message.body)
+                }
+            }
+            
+            false
+        } catch (e: Exception) {
+            // If there's any error, default to false
+            false
+        }
+    }
+
+    private fun isBankConversation(conversation: Conversation): Boolean {
+        return try {
+            // Check if conversation is from a bank based on title, phone number, and snippet
+            if (MessageFilters.isFromBank(
+                senderName = conversation.title,
+                phoneNumber = conversation.phoneNumber,
+                messageBody = conversation.snippet
+            )) {
+                return true
+            }
+            
+            // If the conversation itself is marked as unread, check unread messages
+            if (!conversation.read) {
+                val unreadMessages = try {
+                    messagesDB.getThreadMessages(conversation.threadId).filter { !it.read }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                return unreadMessages.any { message ->
+                    MessageFilters.isFromBank(
+                        senderName = message.senderName,
+                        phoneNumber = message.senderPhoneNumber,
+                        messageBody = message.body
+                    )
+                }
+            }
+            
+            false
+        } catch (e: Exception) {
+            // If there's any error, default to false
+            false
         }
     }
 }
