@@ -68,26 +68,11 @@ jobs:
         run: |
           ./gradlew assembleCoreRelease --stacktrace
           
-      - name: Get APK info
-        id: apk_info
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/core/release -name "*.apk" | head -1)
-          APK_NAME=$(basename "$APK_PATH")
-          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
-          
-      - name: Get app version
-        id: app_version
-        run: |
-          VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d'=' -f2)
-          echo "version=$VERSION_NAME" >> $GITHUB_OUTPUT
-          echo "App version: $VERSION_NAME"
-          
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: messages-release-apk
-          path: ${{ steps.apk_info.outputs.apk_path }}
+          path: app/build/outputs/apk/core/release/*.apk
           retention-days: 30
           
       - name: Upload mapping files
@@ -96,9 +81,39 @@ jobs:
           name: messages-mapping
           path: app/build/outputs/mapping/coreRelease/mapping.txt
           retention-days: 90
-          
+
+  upload-release:
+    permissions: write-all
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get app version
+        id: app_version
+        run: |
+          VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          echo "version=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "App version: $VERSION_NAME"
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: messages-release-apk
+          path: ./out/android
+
+      - name: Download mapping files
+        uses: actions/download-artifact@v4
+        with:
+          name: messages-mapping
+          path: ./out/mapping
+
+      - name: List output directory
+        run: ls -R ./out
+
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.app_version.outputs.version }}
           name: Release v${{ steps.app_version.outputs.version }}
@@ -107,7 +122,9 @@ jobs:
             
             Build from commit ${{ github.sha }}
             Build number: ${{ github.run_number }}
-          files: ${{ steps.apk_info.outputs.apk_path }}
+          files: |
+            ./out/android/*
+            ./out/mapping/*
           draft: false
           prerelease: false
         env:
