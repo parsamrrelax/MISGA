@@ -48,9 +48,15 @@ jobs:
           ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           if [ -n "$ENCODED_STRING" ]; then
-            echo $ENCODED_STRING | base64 -d > keystore.jks
+            echo "Decoding keystore..."
+            echo "$ENCODED_STRING" | tr -d '\n\r\t ' | base64 -d > keystore.jks
+            if [ $? -eq 0 ]; then
+              echo "Keystore decoded successfully"
+            else
+              echo "Failed to decode keystore - using unsigned build"
+            fi
           else
-            echo "No keystore secret found, skipping keystore setup"
+            echo "No keystore secret found, using unsigned build"
           fi
           
       - name: Build Release APK
