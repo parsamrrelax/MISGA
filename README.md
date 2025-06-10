@@ -1,7 +1,18 @@
-# Fossify Messages
+# Make Iran SMS Great Again
 <img alt="Logo" src="graphics/icon.webp" width="120" />
 
-<a href='https://play.google.com/store/apps/details?id=org.fossify.messages'><img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' height=80/></a> <a href="https://f-droid.org/packages/org.fossify.messages/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on-en.svg" alt="Get it on F-Droid" height=80/></a> <a href="https://apt.izzysoft.de/fdroid/index/apk/org.fossify.messages"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height=80/></a>
+## Added Features
+
+This repository is a fork of fossify messages.
+
+SMS is spammed a lot in Iran. So I forked fossify and added some basic filtering to messages.
+
+Now all the sms should be cateogorized so we everytime we open the sms app we don't have to see thousands of spam messages and can find our important contacts.
+
+
+Everything else is the same. No logging no tracking no internet access for the app.
+
+
 
 Fossify Messages is your trusted messaging companion, designed to enhance your messaging experience in various ways.
 

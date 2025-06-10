@@ -76,6 +76,13 @@ jobs:
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
           
+      - name: Get app version
+        id: app_version
+        run: |
+          VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d'=' -f2)
+          echo "version=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "App version: $VERSION_NAME"
+          
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -93,13 +100,13 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.run_number }}-${{ github.sha }}
-          name: Release v${{ github.run_number }}
+          tag_name: v${{ steps.app_version.outputs.version }}
+          name: Release v${{ steps.app_version.outputs.version }}
           body: |
-            Automated release build from commit ${{ github.sha }}
+            Release version ${{ steps.app_version.outputs.version }}
             
+            Build from commit ${{ github.sha }}
             Build number: ${{ github.run_number }}
-            Commit: ${{ github.sha }}
           files: ${{ steps.apk_info.outputs.apk_path }}
           draft: false
           prerelease: false
