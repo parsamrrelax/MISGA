@@ -1,6 +1,12 @@
 # Make Iran SMS Great Again
 <img alt="Logo" src="graphics/icon.webp" width="120" />
 
+
+## امکانات اضافه شده
+
+برای جلوگیری از اسپم بیش از حد اس‌ام‌اس در ایران دسته‌بندی اس‌ام‌‌اس‌ها اضافه شده.
+
+
 ## Added Features
 
 This repository is a fork of fossify messages.
@@ -13,6 +19,8 @@ Now all the sms should be cateogorized so we everytime we open the sms app we do
 Everything else is the same. No logging no tracking no internet access for the app.
 
 
+
+## Everything else from original fossify messages is still there
 
 Fossify Messages is your trusted messaging companion, designed to enhance your messaging experience in various ways.
 
